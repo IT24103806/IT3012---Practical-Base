@@ -1,5 +1,6 @@
 import random
 import tkinter as tk
+from agent import SearchAgent
 
 
 class VisualGridHuntGame:
@@ -66,6 +67,10 @@ class VisualGridHuntGame:
         ahead = (self.agent_pos[0] + dx, self.agent_pos[1] + dy)
 
         return {
+            'agent_pos': list(self.agent_pos),
+            'grid_size': (self.width, self.height),
+            'walls': list(self.walls),
+            'all_food': list(self.food_positions),
             'wall_ahead': (
                 ahead in self.walls
                 or ahead[0] < 0
@@ -140,6 +145,7 @@ class GridGameGUI:
             num_opponents=num_opponents,
             custom_walls=walls
         )
+        self.agent = SearchAgent()
 
         max_canvas_dim = 600
         self.cell_size = max(
@@ -260,7 +266,7 @@ class GridGameGUI:
 
         def step():
             if not self.env.is_done():
-                action = random.choice(['Up', 'Down', 'Left', 'Right'])
+                action = self.agent.sense_and_act(self.env.get_percept())
                 self.env.execute_action(action)
 
                 self.draw_grid()
