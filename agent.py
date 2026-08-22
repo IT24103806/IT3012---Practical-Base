@@ -1,4 +1,5 @@
 import random
+import math
 import heapq
 from collections import deque
 
@@ -53,6 +54,12 @@ class SearchAgent:
     def __init__(self):
         self.plan = []
         self.active_algo = 'BFS'
+
+    def manhattan_distance(self, pos, goal):
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
+
+    def euclidean_distance(self, pos, goal):
+        return math.sqrt((pos[0] - goal[0]) ** 2 + (pos[1] - goal[1]) ** 2)
 
     def _neighbors(self, position, walls, grid_size):
         width, height = grid_size
@@ -124,6 +131,33 @@ class SearchAgent:
                     sequence += 1
         return None
 
+    def astar_search(self, start_pos, goal_pos, walls, grid_size, heuristic_type='manhattan'):
+        heuristic = (
+            self.euclidean_distance
+            if heuristic_type == 'euclidean'
+            else self.manhattan_distance
+        )
+        frontier = [(heuristic(start_pos, goal_pos), 0, 0, start_pos, [])]
+        reached_states = {start_pos: 0}
+        sequence = 1
+
+        while frontier:
+            f_cost, g_cost, _, current_pos, path_taken = heapq.heappop(frontier)
+            if current_pos == goal_pos:
+                return path_taken
+
+            for action, new_pos in self._neighbors(current_pos, set(walls), grid_size):
+                new_g_cost = g_cost + 1
+                if new_pos not in reached_states or new_g_cost < reached_states[new_pos]:
+                    reached_states[new_pos] = new_g_cost
+                    new_f_cost = new_g_cost + heuristic(new_pos, goal_pos)
+                    heapq.heappush(
+                        frontier,
+                        (new_f_cost, new_g_cost, sequence, new_pos, path_taken + [action])
+                    )
+                    sequence += 1
+        return None
+
     def sense_and_act(self, percept: dict) -> str:
         if not self.plan:
             start = tuple(percept['agent_pos'])
@@ -138,14 +172,23 @@ class SearchAgent:
             search_methods = {
                 'BFS': self.bfs_search,
                 'DFS': self.dfs_search,
-                'UCS': self.ucs_search
+                'UCS': self.ucs_search,
+                'AStar': self.astar_search
             }
-            path = search_methods.get(self.active_algo, self.bfs_search)(
-                start,
-                target,
-                percept['walls'],
-                percept['grid_size']
-            )
+            if self.active_algo == 'AStar':
+                path = self.astar_search(
+                    start,
+                    target,
+                    percept['walls'],
+                    percept['grid_size']
+                )
+            else:
+                path = search_methods.get(self.active_algo, self.bfs_search)(
+                    start,
+                    target,
+                    percept['walls'],
+                    percept['grid_size']
+                )
             self.plan = path or []
 
         return self.plan.pop(0) if self.plan else 'Stay'
